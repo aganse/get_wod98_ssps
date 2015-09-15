@@ -1,0 +1,78 @@
+                             sspcomp v1.11
+   Andy Ganse, Applied Physics Laboratory, University of Washington
+                       aganse@apl.washington.edu
+-----------------------------------------------------------------------
+
+'sspcomp' - Computes soundspeed values for depth/temp/salinity profiles
+and appends them to the inputted ascii data columns.  The input data columns
+are in the format outputted by oclfilt.  Additionally, if specified on the
+command line, sspcomp can add columns of 'comparison' salinities and the
+alternate soundspeeds calculated from them, and then show the differences
+between the measured-sal soundspeeds and the comparison-sal soundspeeds.
+
+sspcomp cycles over the profile data in the input, and calls the soundspeed
+calculation function sspcm2() on each depth/temp/salinity combo.  If the
+comparison salinities from the WOA94 database files are being used, they only
+have salinities at standard depths, so comparison salinities are interpolate
+if the input data is at observed-level depths (higher depth resolution).
+See man files for more detail and examples.
+
+To unzip & expand (requires GNU's gzip package):
+-----------------------------------------------------------------------
+% cd <your oclfilt directory>                            
+% gunzip -c sspcomp-1.11.tar.gz | tar tvf - | more       # check contents
+% gunzip -c sspcomp-1.11.tar.gz | tar xf -               # expand
+
+To compile:
+-----------------------------------------------------------------------
+% make
+(I used GNU make 3.77 and didn't test with other make programs, but I
+think it's a general enough make script it'll probably make okay in others.
+
+Documentation:
+-----------------------------------------------------------------------
+See sspcomp.manpage.
+
+
+Issues/Notes:
+-----------------------------------------------------------------------
+
+* The depth-binning feature isn't quite working yet for all cases, so don't
+  trust it yet.  Also, when binning I calculate an average bin value of the
+  values contained within that bin, and a standard deviation from that mean.
+  At this point that stddev is computed as:
+  sqr( sum( (delta_avg-delta_i)^2 ) / N
+  which works out right if there's just one data point.  But I'm looking into
+  whether that denominator should instead be N-1, and what to do about it.
+
+* All the salinity database values are at standard depths, so some
+  interpolation must be done to obtain the comparison salinities when 
+  the input is at observed levels (greater resolution).
+  Currently this interpolation is a simple nearest-neighbor scheme; perhaps
+  linear or some other type of interpolation would be more appropriate.
+
+* This sspcm2 function in C is a port of the function from FORTRAN, written
+  by Kristen Kulman and Mike Boyd, also at APL.
+  There is still a minor discrepancy beginning in the ten-thousandths decimal
+  place in their calculated values.   It's probably some kind of 'REAL' vs
+  'double' issue that I haven't tracked down yet.  It's coming.
+  Example:
+  C version:
+  status=0, pres=1000.000000, temp=40.000000, sal=40.000000, sndspd=1745.095394
+                                                                         ^^^^^^
+  FORTRAN version:
+   ENTER PRESSURE (BARS), DEPTH (M), TEMP (C), SALINITY (%)
+   IF PRESSURE IS ZERO OR NEGATIVE, USE DEPTH TO COMPUTE PRESSURE.
+   1000.000000, 0, 40.000000, 40.000000
+   PRESSURE, DEPTH, TEMP, SAL, SONSPD
+    1000.00    0.00   40.00   40.00   1745.0952 M/S
+                                           ^^^^
+  And noting this comment in the FORTRAN source code (note matches F output):
+  * CHECK VALUE: 1745.095215 m/s for PRESSURE = 1000 bars, TEMP = 40 deg C, and
+  *                   ^^^^^^                                       SAL = 40 ppt
+
+  However, I've only been looking at the first three decimal places anyways,
+  and those match up in my test cases over the function's input domain, so
+  that's how many decimal places sspcomp outputs for soundspeed.  But it's
+  still on the list to be fixed...
+

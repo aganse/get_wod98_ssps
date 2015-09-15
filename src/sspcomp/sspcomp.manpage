@@ -1,0 +1,78 @@
+   sspcomp.c - version 1.1
+               "Sound Speed Comparison" - meant to mainly take output from 
+               oclfilt via stdin, to help show us whether there is a strong
+               effect from salinity variations in the calculation of ssp in
+               shallow water depths.  sspcomp tablulates ssp values which are
+               calculated both from the actual salinity and from a constant
+               comparison salinity (specified on the command line)
+               Values are binned according to profile depths for consistancy.
+               Output columns are:
+                lat, lon, year, month, day, time, depthbin, temp, sal, sndspd,
+                 [comp_sal, comp_sndspd, diff_sndspd, [stdev_ssp, numbins] ]
+               sspcomp assumes input data is grouped by station, each within
+               profile depth order (as oclfilt outputs).
+   
+   required sources/files: sspcomp.c, sspcm2.c, Makefile
+  
+   language:   ANSI C
+  
+   author:     Andy Ganse, Applied Physics Laboratory, University of Washington
+               (aganse@apl.washington.edu)
+               As of this writing, this sspcomp-1.1 package is available at:
+               http://staff.washington.edu/aganse/src
+               Please email me if you use this code so I can alert you to 
+               updates and have an estimate for how many folks use it.
+  
+   notes:      sspcm2 and depth2pres were from Mike Boyd & Kristin Kulman
+               (I translated the FORTRAN to to C).  See credits in sspcm2.c
+               for details.
+               (the little formula in depth2pres was actually just gleaned out
+               of tsspcm2.f - "test sspcm2")
+   
+   usage:      sspcomp [optional params -dhilsASt]
+               (so note that its default is to use stdin and stdout)
+  
+   where the optional parameters are:
+               -d <depthbinsize>
+                  specify depth bin size in meters.  profile depths and their
+                  data will be binned and statistically reported within bins
+                  of: 0-depthbinsize meters, depthbinsize-2depthbinsize meters, 
+                  2depthbinsize-3depthbinsize meters, etc.  Output depthbin
+                  values are the lower end of the bin (ie start with 0).
+                  So for a depthbinsize of 10.00 meters, the bins would be
+                  0-10.00, 10.00-20.00, 20.00-30.00, etc.  The output
+                  listing then will list 0.00, 10.00, 20.00,...
+                  (default uses no depth binning at all - report on every depth)
+               -h 
+                  show help/usage listing
+               -i <infilename>
+                  specify input file (default assumes stdin)
+               -l <labelstring>
+                  specify an extra header label line to add to top of output.
+                  <labelstring> must be in quotes, and may not be more than
+                  77 chars in length.  (default is no extra label line)
+               -s <compsal>
+                  specify a constant comparison salinity value
+                  May not be used with -S or -A.
+                  (default without this or -S or -A param outputs no comparison
+                  soundspeeds or salinities at all)
+               -S [win_sal_file,spr_sal_file,sum_sal_file,fall_sal_file]
+                  specify filenames with a databases of seasonal salinity
+                  values to use for comparison.  Files are based on 5deg
+                  convention from WOA94.  (default with -S but no sal_filenames
+                  specified is to use the filenames:
+                    sal13m.5d, sal14m.5d, sal15m.5d, sal16m.5d;
+                  May not be used with -s or -A.
+                  (default without this or -s or -A param outputs no comparison
+                  soundspeeds or salinities at all)
+               -A [compsal_filename]
+                  specify a filename with a database of annual salinity
+                  values to use for comparison.  File is based on 5deg
+                  convention from WOA94.  (default with -A but no
+                  compsal_filename specified is to use filename sal00m.5d;
+                  May not be used with -s or -S.
+                  (default without this or -s or -S param outputs no comparison
+                  soundspeeds or salinities at all)
+               -t
+                  DON'T show title header (default shows header)
+  

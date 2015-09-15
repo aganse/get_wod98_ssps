@@ -1,0 +1,76 @@
+#!/bin/csh
+
+# get.wod98.ssps - example shell script to retrieve soundspeed profiles from
+#                  WOD98 dataset, given all sorts of limiting/filtering
+#                  parameters.
+# This script uses two C programs, oclfilt and sspcomp, to access the data;
+# these must be compiled first (see README file), and this script also will
+# probably need to be modified to fit your application as it's really just an
+# example to demonstrate how to use oclfilt and sspcomp.
+#
+# Output of this script comes out stdout
+# Note comment/header lines in all outputs start with a "%" to cue on...
+
+
+# Set mounted directory of CD drive - different between Sun and Linux...
+#set cd_mnt_dir = /cdrom/cdrom0  # solaris
+set cd_mnt_dir = /mnt/cdrom     # linux
+
+# Set list of input datafiles within a single data directory
+# (note these are essentially device names coupled with a marker ("s" or "o")
+# for std-lvl vs obs-lvl data
+set files = ( ncts ctds nmbs mbts nxbs xbts )
+
+# Name of data directory on cd (note difference in dir names between stdlevel
+# and obslevel data on CD
+set oceanDir = npac
+
+# WMO Squares are the numbered 10-degree square boxes (UN standard) that the
+# data are filed in
+set wmoSquares = ( 1311 1312 1412 )
+
+# Region of interest (west/east/south/north) (use negative #s for W longitutes)
+set geoRegion = 115/125/35/45
+
+# Examples: 1,3 for winter; 1,12 for all year; 4,4 for single month
+set monthRange = 1,12
+
+# Min number of profile pts you want your profiles to have
+set minPts = 5
+
+
+foreach wmoSquare ( $wmoSquares )
+  foreach file ( $files )
+
+    set filename = $file$wmoSquare
+    set device    = `echo $file | sed 's/[os]//'`
+
+    if ( $device == "nct" || $device == "ctd" ) then
+
+    # ctd devices take salinity data, so use that in ssp computation
+    gunzip -c $cd_mnt_dir/data/$oceanDir/$wmoSquare/$filename.gz | \
+    tr -d '\r' | \
+    ./oclfilt -v 1,2 -l $geoRegion -m $monthRange -p $minPts -w $wmoSquare | \
+    ./sspcomp 
+
+    else
+
+    # non-ctd devices don't take salinity data, so use global avg 35ppt salinity
+    gunzip -c $cd_mnt_dir/data/$oceanDir/$wmoSquare/$filename.gz | \
+    tr -d '\r' | \
+    ./oclfilt -v 1 -l $geoRegion -m $monthRange -p $minPts -w $wmoSquare | \
+    ./sspcomp
+
+    endif
+
+  end
+end
+
+
+#
+# Note that outside of this script structure, the general form for reading
+# data out of some single WOD98 data file is:
+#   gunzip -c datafile.gz | tr -d '\r' | oclfilt <-args> | sspcomp <-args> 
+#
+# (The tr command in there strips newline-characters from the data, as the data
+# originated on a MSWindows/DOS machine.)

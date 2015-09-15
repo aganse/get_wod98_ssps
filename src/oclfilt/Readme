@@ -1,0 +1,66 @@
+                             oclfilt v1.85
+   Andy Ganse, Applied Physics Laboratory, University of Washington
+                       aganse@apl.washington.edu
+-----------------------------------------------------------------------
+
+'oclfilt' - Reads and filters binary data from NODC/OCL WOD98 dataset,
+outputs in ascii column format.  Filter parameters include:
+  bathy depth
+  lat/lon boundaries
+  month range
+  year range
+  number of points in profile
+  whether to include error-flagged data
+  skipping to specified station #
+  list of data variables which must have good data
+  weeding out bad lat,lon=0 stations
+
+Output format is directly readable as input by 'sspcomp', which calculates
+soundspeed values for the profiles and appends them to the ascii columns.
+
+oclfilt is essentially a commandline interface wrapper for the function
+'getOCLStationData()', which does the real work for one profile entry.
+oclfilt takes the commandline params and loops over all the stations in
+the data file, calling getOCLStationData() for each one and passing the
+commandline params to it.  getOCLStationData is designed to be used on
+its own as a function in other programs to read and filter WOD98 data.
+See man files for more detail and examples.
+
+To unzip & expand (requires GNU's gzip package):
+-----------------------------------------------------------------------
+% cd <your oclfilt directory>                            
+% gunzip -c oclfilt-1.8.tar.gz | tar tvf - | more       # note contents
+% gunzip -c oclfilt-1.8.tar.gz | tar xf -               # expand
+
+To compile:
+-----------------------------------------------------------------------
+% make
+(I used GNU make 3.77 and didn't test with other make programs, but I
+think it's a general enough make script it'll probably make okay in others.
+
+Documentation:
+-----------------------------------------------------------------------
+See oclfilt.manpage and getOCLStationData.manpage.
+
+
+Issues/Notes:
+-----------------------------------------------------------------------
+
+* The bathy-database option, which substitutes in values from a separate
+  bathy database if the bathy value in the header is unreasonable, requires
+  the GMT3.3 (Generic Mapping Tools) package to be installed.
+  See http://imina.soest.hawaii.edu/gmt for that.
+
+* The sigfig value in the data isn't used in oclfilt, for the following reason:
+  According to the readme file for WOD98, for our use (just looking at depth,
+  temp, salinity data), we don't need to worry about applying the separate
+  sigfig value to each numerical value - the only times it's supposedly used
+  in the data is to show trace values for chemical/bio measurements, and to
+  flag negative data.
+  According to the readme file, there aren't any times when the precision
+  of the recorded value is greater than what should've been recorded (eg,
+  electronic device outputting values only good to tenths of volts but the
+  person recording wrote down all eight decimal digits seen on the voltmeter).
+  However, someday it would probably be reasonable to add a double-check of
+  the sigfig value against the data-value anyways, just to be prudent.
+  In the meantime, I haven't seen any trouble without the check so far.

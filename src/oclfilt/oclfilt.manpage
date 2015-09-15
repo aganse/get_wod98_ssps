@@ -1,0 +1,148 @@
+   oclfilt.c - version 1.85
+        Converts data from an ocl-formatted data file to ascii columns
+        but also can considerably filter that data as per cmdline
+        params, in ways try to that minimize computation/search times.
+ 
+        ("ocl" is a data format created by the NODC Ocean Climate Lab)
+        Assumes input files have \r's stripped (ie., UNIX not DOS text
+        format)
+   
+   required sources/libs: getOCLStationData.c, ocl.h, Makefile;
+  
+   required input files for use: NODC/OCL-formatted data as input files (I'm
+                                 using files from NODC/OCL WOD98).
+  
+                                 If using "bathy database" option, requires a
+                                 3-column ASCII file of lat lon depth (depth
+                                 is negative in this file).  Lat-lons must
+                                 match up with lat-lons in OCL input data file.
+                                 I'm creating mine with shell script
+                                 bathyForThisOCLfile, which extracts subsets
+                                 of Sandwell bathymetry database
+                                 (topex.ucsd.edu/marine_topo/mar_topo.html)
+                                 for each station from an OCL file.
+  
+   language:   ANSI C
+  
+   author:     Andy Ganse, Applied Physics Laboratory, University of Washington
+               (aganse@apl.washington.edu)
+               As of this writing, this oclfilt-1.85 package is available at:
+               http://staff.washington.edu/aganse/src
+               Please email me if you use this code so I can alert you to 
+               updates and have an estimate for how many folks use it.
+  
+   notes:      The OCL format used was specified in the format.txt file that
+               accompanies the WOD98 CD set.  However, note that there is an
+               error at the end of the spec - in the profile section the spec
+               says (in so many words):
+                 loop over levels:
+                    get depth value.
+                    get variable value.
+               when in fact it should say (in so many words):
+                 loop over levels:
+                    get depth value.
+                    loop over variable columns:
+                       get variable value.
+               The latter is of course what this program does (you don't get
+               much data otherwise).
+   
+   usage:      oclfilt [ optional params -bdefhilmnopqrstvwy]
+               (so note that its default is to use stdin and stdout)
+  
+   where the optional parameters are:
+               -b <shallower_dlimit>,<deeper_dlimit>
+                  bottom depth filter : only output data for the stations
+                  with bottom depths between <shallower_dlimit>
+                  and <deeper_dlimit>.  These bottom depths are generally
+                  taken from the secondary header info in the stations
+                  (secondary header code #10).
+                  For those stations with no secondary header bottom depth
+                  info, the station is reported if its deepest profile data
+                  depth is within that bottom depth range, but is flagged
+                  as such.  (default yields all stations)
+               -d <bathy-database filename>
+                  use the bathy values within the named lat-lon-depth file
+                  as the basis for the bottom depth filtering.  This file
+                  is generally created with shell script bathyForThisOCLfile.
+                  (default uses either the bottom depth from secndry header or
+                  from deepest profile depth if sec hdr value is missing/bad)
+               -e
+                  output "end" statistics for file, instead of full output:
+                  gives number of stations and bytecount for file, according to
+                  the filtering criteria on cmdline
+                  This option superceeds the formatted profile data output.
+               -f 
+                  full/debugging output : each and every field of data from the
+                  input is listed.  Very lengthy and ugly; just meant for
+                  debugging or looking at example data during development.
+                  This option superceeds the formatted profile data output.
+               -h
+                  lists brief help/description screen
+               -i <infilename>
+                  specifies filename of input (default uses stdin)
+               -l <westbound>/<eastbound>/<southbound>/<northbound>
+                  specifies a lat-lon subregion of interest within the file to
+                  select from the rest.  bounds are in decimal degrees, using
+                  the "/" char as a separator.  Region boundaries are included
+                  in the selected data.  Currently lon bounds don't wrap around
+                  the 0 and 360 marks, they must match the lon style of the
+                  data; this will be fixed at some point.
+               -m <minmonth>,<maxmonth>
+                  specifies a month range to select data by; eg. -m 1,3
+                  filter is inclusive of both max and min months.
+                  (default does not filter by months - ie returns all months)
+               -n <numberofstations>
+                  only output <numberofstations> stations:  if
+                  <numberofstations> is greater than number of stations in
+                  file, no error but of course will stop at end of file.
+                  (default does not limit number of stations in this way)
+               -o <outfilename>
+                  specifies filename of output (default uses stdout)
+               -p <profilepts>
+                  specify minimum number of profile points (levels) to filter
+                  by.  (default returns station regardless of how few profile
+                  levels it has)
+               -q
+                  query for variables and data quantity: for each station,
+                  only ouput a list of which variables have data in the
+                  profiles (eg temp, sal, pressure, etc), and the number
+                  of bytes in each profile.
+                  This option superceeds the usual profile data output.
+               -r
+                  include error-flagged data in output (if it's not already
+                  included) and append error-flags next to each var in output.
+                  (default: if varlist specified with -v option, each profile
+                  level will be output unless it has a nonzero error code
+                  in one of its vars that are in varlist.
+                  if no varlist specified, default outputs all profile levels
+                  for all vars)
+               -s <stationnumber>
+                  skip to specified station number and start from there.
+                  (default starts with first station in file)
+               -t
+                  do *NOT* output title header that labels the station number, 
+                  position, time, and data column descriptors in comment lines
+                  which begin with a % character.
+                  This option only works with the usual profile data output.
+                  (default outputs that title header)
+               -v <var_list>
+                  variables filter : only output profile data for variables
+                  included in <var_list>.  And if any variables in <var_list>
+                  are not in profile or have error codes for the whole
+                  variable, that station is skipped completely.
+                  <var_list> is specified as comma-separated list of the
+                  variable code numbers.  (1=temp, 2=sal, etc. as listed
+                  in Table 4 in NODC OCL readmev1 doc)  eg: -v 1,2
+                  (default outputs data for all variables for all profiles)
+               -w <wmo_square>
+                  do not output stations which have zero for lat or lon value
+                  when the station is not in a wmo-square that's along the 
+                  equator or prime meridian (respectively).  <wmo_square> is
+                  generally parsed out of the OCL filenames...
+                  (default outputs station even if there are invalid zero
+                  values for lat & lon)
+               -y <minyear>,<maxyear>
+                  specifies a year range to select data by; eg. -y 1976,1980
+                  filter is inclusive of both max and min years.
+                  (default does not filter by year - ie returns all years)
+  

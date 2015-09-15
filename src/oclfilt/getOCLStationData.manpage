@@ -1,0 +1,236 @@
+   getOCLStationData() -
+               Reads one station of data from an OCL-formatted data file into
+               a data structure for use in the calling routine.  If filters
+               are specified in args, getOCLStationData will stop reading and
+               skip to the next station in the input file (and return to the
+               calling function) as soon as a filter applies, in order to
+               reduce computation time (mostly I/O time).
+               Note that getOCLStationData skips right over the station's
+               character data, PI data, and bio/taxo data (since I'm not
+               interested in those), but the framework set up in this code
+               makes it easy enough to add those if desired.  Comments in the
+               code label the places to change.  (seach for PI, bio, taxo...)
+  
+   other required sources/files: ocl.h
+  
+   language:   ANSI C
+  
+   author:     Andy Ganse, Applied Physics Laboratory, University of Washington
+               (aganse@apl.washington.edu)
+               As of this writing, this oclfilt-1.85 package is available at:
+               http://staff.washington.edu/aganse/src
+               Please email me if you use this code so I can alert you to 
+               updates and have an estimate for how many folks use it.
+
+  
+   last update:2/23/00
+  
+   notes:
+               OCL is the internal data format of the NODC Ocean Climate Lab.
+               Assumes input files have \r's stripped (ie., in UNIX not DOS
+               text format)
+  
+               The data files consist of "stations" (unique instances of
+               measurement-location and -time), generally read in a loop.
+               The files use a proprietary format of byte conditions ("this
+               byte tells how many bytes are in the following byte-field",
+               "if this byte is a 3 the following 2 bytes mean such-and-such")
+               They rely strictly on sequential access - one misread byte
+               can potentially ruin the reading of an ensuing 20MB of data.
+  
+               getOCLStationData() takes in the data stream-wise and includes
+               logic to both skip over whole unwanted stations and skip over
+               unwanted parts of station data in order to decrease computation
+               time.  This becomes very significant when getOCLStationData() is
+               used in a loop to read a 10 or 20 MB data file (typical).
+               The extra logic and count values in the function args are for
+               this purpose.
+  
+               The OCL format used was specified in the format.txt file that
+               accompanies the WOD98 CD set.  However, note that there is an
+               error at the end of that spec - in the profile section the spec
+               says (in so many words):
+                 loop over levels:
+                    get depth value.
+                    get variable value.
+               when in fact it should say (in so many words):
+                 loop over levels:
+                    get depth value.
+                    loop over variable columns:
+                       get variable value.
+               The latter is of course what this program does (you don't get
+               much data otherwise).
+  
+               The function prototypes for getOCLStationData and its
+               subfunctions are found in ocl.h, as well as the data structure
+               OCLStationType, which consists of all the data values taken
+               from one "station" of the data file.  Some symbolic constants
+               are in there too.
+  
+   Usage:      int getOCLStationData( FILE *fp_in, long int stn, 
+                 OCLStationType *stnData, int wantProfileFlag,
+                 int skipFlag, long int stnToSkipTo,
+                 int varListFlag, long int *varList, long int numVarsOnVarList,
+                 int minLevelsFlag, long int minLevels,
+                 int latlonRegionFlag, double *latlonRegion,
+                 int yearRangeFlag, long int *yearRange,
+                 int monthRangeFlag, long int *monthRange,
+                 int dbBathyFlag, FILE *fp_dbBathy,
+                 int zeroLatLonFlag, char *wmoSquare );
+  
+               Explanation of function args:
+  
+                FILE *fp_in - OCL-formatted input file we read data from.
+                   File opened & closed in the calling function.
+  
+                long int stn - current station # (from loop in calling funct)
+  
+                OCLStationType *stnData - pointer to structure which will hold
+                   all the station data we read; note that since this is a
+                   pointer to struct we use stnData->element in the code below,
+                   rathen than stnData.element.  Referencing from a pointer
+                   allows us to pass all our data back to the calling routine.
+  
+                int wantProfileFlag - true (1) = yes, we want to read the
+                                         profile data for this station.
+                                      false (0) = no, skip the profile data for
+                                         this station - only want its header
+                                         header data.  Saves lots of I/O time
+                                         when filtering or doing stats
+                                         (like report station bytecounts
+                                         and which vars they have)
+  
+                int skipFlag - true (1) = yes, we're skipping the station
+                                  specified by stnToSkipTo, so if we're
+                                  not there yet, only read enough station
+                                  data so we know how many bytes to skip
+                               false (0) = no, we're not skipping any stations
+                                  so don't worry about stnToSkipTo value
+  
+                long int stnToSkipTo - the station number we want to skip to,
+                   if skipFlag true (count begins at station 0)
+  
+                int varListFlag - true (1) = yes, there's a variable list that
+                                     is specified in *varList, and we
+                                     want to skip stations that do not
+                                     contain those variables.  But we
+                                     had to read a little bit of the
+                                     station to check that.
+                                  false (0) = no, we're not skipping any
+                                     stations based on which variables they
+                                     have, so don't bother with *varList
+  
+                long int *varList - a 1-D array with the numerical var codes of
+                   the variables that we want to make sure are in our data
+                   stations.  See NODC's format.txt from WOD98 for these var
+                   codes.  For example if we want to skip stations that don't
+                   have at least temp and pressure vars, then varListFlag
+                   would be 1 and varList[] here would be {2,25}.
+                   (1=temp & 25=pres).
+  
+                long int numVarsOnVarList - # of variables on varList above.
+                   so for that little example above, numVarsOnVarList=2.
+  
+                int minLevelsFlag - true (1) = yes, we want to filter out
+                                       stations having fewer profile levels
+                                       than minLevels
+                                    false (0) = no, don't filter stations by
+                                       how many profile points (levels) they
+                                       have, and ignore the minLevels arg.
+                long int minLevels - minimum number of profile levels station
+                                     must have to pass the filter
+                int latlonRegionFlag - true (1) = yes, we want to filter out
+                                          stations whose lat/lon values are
+                                          not within the range specified
+                                          in *latlonRegion.
+                                       false (0) = no, don't filter stations
+                                          by their lat/lon region, and ignore
+                                          the *latlonRegion argument.
+                            
+                double *latlonRegion - four-element array holding lat/lon
+                                    region in the following order:
+                                    westbound,eastbound,southbound,northbound.
+                                    lat/lon values are in decimal degrees, with
+                                    lons as -90 to +90 degrees, and lats may be
+                                    either -180 to +180 or 0 to 360 degrees.
+  
+                int yearRangeFlag - true (1) = yes, we want to filter out
+                                       stations whose recorded year is not
+                                       within the range specified by yearRange.
+                                    false (0) = no, don't filter stations by
+                                       their year value, and ignore the
+                                       *yearRange argument.
+  
+                long int *yearRange - two-element array holding minyear,maxyear
+                                    to filter between, inclusive of both.
+  
+                int monthRangeFlag - true (1) = yes, we want to filter out
+                                      stations whose recorded month is not
+                                      within the range specified by monthRange.
+                                    false (0) = no, don't filter stations by
+                                      their month value, and ignore the
+                                      *monthRange argument.
+  
+                long int *monthRange - two-element array holding
+                                    minmonth,maxmonth to filter between,
+                                    inclusive of both.
+  
+                int dbBathyFlag - true (1) = yes, we want to look up the
+                                     bathy value for this station's
+                                     location from a database (more data
+                                     integrity but much more comp time)
+                                  false (0) = no, don't look up the bathy
+                                     value for this station's location
+                                     in a database.  (Ignore fp_dbBathy.)
+  
+                FILE *fp_dbBathy - pointer to database-bathy file (if used).
+                   File is a premade ASCII lat-lon-depth file made specifically
+                   for use with this OCL input-file, by the shell script 
+                   bathyForThisOCLfile.  File opened/closed in calling function
+  
+                int zeroLatLonFlag - true (1) = yes, we want to filter out
+                                        stations with an invalid value of zero
+                                        for latitude or longitude, as loosely
+                                        determined by looking at the wmoSquare
+                                        value and seeing if this station's
+                                        square lies along equator or prime
+                                        meridian.
+                                    false (0) = no, don't filter out stations
+                                        by their zeroed lats & lons, and ignore
+                                        wmoSquare arg.
+  
+                char *wmoSquare - four char string specifying station's WMO
+                   Square (10-deg lat-lon square, as defined by UN WMO).
+                   Generally the calling function would gleen this from the
+                   name of the OCL file.
+  
+  
+   Example Implementation:
+     Most basic usage.  No filtering, returns all station data.
+     Calling function must include "ocl.h" and open the input file
+     (if not using stdin).
+  
+  
+   #include <stdio.h>
+   #include "ocl.h"
+   int main() {
+     OCLStationType stnData;
+     int stnNum;
+     for( stnNum=0; !feof(stdin) && stnNum<10; stnNum++ ) {
+       if( getOCLStationData( stdin, stnNum, &stnData, 1, 0, 0, 0, 0, 0, 0, 0,
+                              0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ) != SUCCESSFUL ) {
+         printf("error at station %ld\n", stnNum);
+         exit(1);
+       }
+       else
+         printf("Stn %ld Lat=%f Lon=%f\n", stnNum, stnData.lat, stnData.lon);
+     }
+     return SUCCESSFUL;
+   }
+  
+  
+   Compile as :
+     gcc -O -o exampleprog examplecode.c getOCLStation.c -lm
+   Then run as (note stripping of DOS linefeeds with tr) :
+     gunzip -c nbds1106.gz | tr -d '\r' | exampleprog | more
+

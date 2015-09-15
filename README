@@ -1,0 +1,104 @@
+get.wod98.ssps -                                     A. Ganse, APL-UW, 9/2001
+
+Description:
+---------------------------
+This script and the two programs that come with it read and filter data from
+the World Ocean Database 1998 (ie "WOD98", a NOAA/NODC dataset from the Ocean
+Climate Laboratory or "OCL" - for more information and access to their online
+data see http://www.nodc.noaa.gov/OC5).
+
+In an attempt to compress the large amount of data in WOD98, OCL put the data
+into a curious (and frankly not very efficient either) data format, hence the
+need for a reader routine.  The reader routine includes a number of basic
+filtering capabilities to select out data profiles for given locations, dates,
+and so on.  It also tries to be at least somewhat efficient in its filtering
+and searching methods to reduce access time.  Also, if it ever becomes 
+necessary, note that the reader program was written in a modular way with
+functions that were meant to allow embedding into other C programs.
+
+The two accompanying programs, oclfilt and sspcomp, were designed to be used
+together (in particular, sspcomp is meant to work on oclfilt's output).
+Oclfilt reads and filters OCL's WOD98 data, outputting depth/temp/salinity/etc
+profiles with extra cruise information.  Sspcomp takes oclfilt's output (or
+some other input designed to mimic oclfilt's output format) and uses the 
+Chen-Millero-Li ocean soundspeed model to convert the depth/temp/salinity
+profiles to depth/soundspeed profiles.  The programs each have manpages and
+readme files of their own in their respective src directories, and can be used
+in broader circumstances than just that seen in the get.wod98.ssps script
+But this script covers the most common usage, and serves as an introduction
+to how one might use oclfilt and sspcomp together elsewhere.
+
+To get started, the user can just modify locations/dates/etc in get.wod98.ssps
+and run it to obtain the needed data from WOD98 in ASCII columnar form.
+Additional command line arguments are described in oclfilt's and sspcomp's
+manpages, and for further questions and clarifications the user is welcome to
+contact Andy Ganse (APL-UW) at aganse@apl.washington.edu.
+
+
+
+Directions for use:
+---------------------------
+0.) This package is designed to be run on a UNIX system that has a C compiler,
+the "make" utility, and the C Shell (csh) installed.  The C code for the
+actual reading/calculating programs is all in ANSI C, however, and uses no
+additional libraries, so I think there would be little trouble compiling it
+on another platform (eg MSWindows)... but I haven't tried or tested this.
+
+1.) Once you've untarred this package you will need to run "make" to compile
+the oclfilt and sspcomp programs that the get.wod98.ssps script uses.
+Just type:
+   make
+and wait a few minutes for the programs to compile.
+
+2.) In the same directory with get.wod98.ssps in it, try a command line like
+the following to make sure everything works (with the WOD98 standard-levels
+CD in the drive):
+   get.wod98.ssps | more
+You may need to check that the path to the CD drive used in the script matches
+your system.  You should see output looking something like the below.  Note
+the % symbol that begins every comment line, as a key for skipping that line.
+
+%  Lat      Lon   Year Mo Dy  Time   Depth    Temp      Saln  Calcd_SSP
+%  deg      deg   yyyy mm dd   hrs  meters    deg C      ppt     m/s
+%------------------------------------------------------------------------
+%Station #82, bottom depth   57.00 m (from h),  standard level data
+35.0100 122.2333 1983 11 19 11.10    0.000   15.993   32.111  1506.424
+35.0100 122.2333 1983 11 19 11.10   10.000   16.005   32.103  1506.616
+35.0100 122.2333 1983 11 19 11.10   20.000   16.027   32.107  1506.854
+35.0100 122.2333 1983 11 19 11.10   30.000   15.947   32.111  1506.774
+35.0100 122.2333 1983 11 19 11.10   50.000   12.426   32.574  1496.194
+etc...
+
+3.) Once you've verified this works, you'll of course you'll want to modify
+the script parameters (region, depths, etc) to return the data you're
+interested in.
+
+4.) The get.wod98.ssps script as it comes with this package assumes that its
+own directory will be the current working directory when being run, and that
+the oclfilt and sspcomp executables will be in that directory (as put there
+automatically by "make").  You should at least try this configuration once
+after "making" to be sure everything works this far, but you are not stuck
+with this setup.
+If you want to use the get.wod98.ssps script more generally, you can:
+ a.) copy the oclfilt and sspcomp executables to your ~/bin directory,
+ b.) verify that your ~/bin directory is in your path,
+ c.) run the "rehash" command so the system knows you just added a new
+     executable to your path since logging in,
+ d.) and finally modify the "./oclfilt" and "./sspcomp" entries in
+     get.wod98.ssps to "oclfilt" and "sspcomp" since they will no longer
+     be in the current directory.
+
+5.) For modifying the resulting output into a form suitable for various
+further scripts, the AWK command/language has been very helpful in skipping
+comment lines, swapping columns, and so on.  Other tools might work just as
+well, but an AWK example for this is included (convert.awk).  Try:
+   get.wod98.ssps | awk -f convert.awk | more
+
+
+Hopefully, since the majority of data requests have fit the format of what
+get.wod98.ssps returns, this will be enough to get you the data you need.
+But if not I'm certainly happy to answer questions and lend a hand to the
+extent that I can spare the time for it...
+
+Cheers,
+-Andy Ganse, APL-UW
